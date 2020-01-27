@@ -37,3 +37,5 @@ A database which includes automobile manufacturers, models and engine options wi
 * Weight -> Gross Weight Limit
 
 Data mined at **27/01/2020** from autoevolution.com
+
+Sponsored by [6harf.com](https://6harf.com "Turkey based creative design & development agency")
