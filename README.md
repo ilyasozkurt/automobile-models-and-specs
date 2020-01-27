@@ -1,9 +1,9 @@
 # automobile-data
 A database which includes automobile manufacturers, models and engine options with specs.
 
-108 Brand
-6194 Model
-14526 Model Option (Engine)
+* 108 Brand
+* 6194 Model
+* 25400~ Model Option (Engine)
 
 ## Specs
 * Engine -> Cylinders
