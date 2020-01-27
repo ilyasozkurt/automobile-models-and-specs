@@ -1,6 +1,8 @@
 # automobile-data
 A database which includes automobile manufacturers, models and engine options with specs.
 
+**If you need json format you need to download zip file. I compressed it to upload.**
+
 * 108 Brand
 * 6194 Model
 * 25400~ Model Option (Engine)
