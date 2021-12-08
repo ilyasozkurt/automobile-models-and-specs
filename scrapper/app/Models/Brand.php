@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Brand extends Model
@@ -24,4 +25,12 @@ class Brand extends Model
         'name',
         'logo',
     ];
+
+    /**
+     * @return HasMany
+     */
+    public function automobiles(): HasMany
+    {
+        return $this->hasMany('App\Models\Automobile');
+    }
 }
