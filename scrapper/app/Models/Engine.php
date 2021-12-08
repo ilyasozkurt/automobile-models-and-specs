@@ -19,7 +19,7 @@ class Engine extends Model
      * @var string[]
      */
     protected $fillable = [
-        'hash',
+        'other_id',
         'automobile_id',
         'name',
         'specs'
