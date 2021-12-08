@@ -1,13 +1,25 @@
-# automobile-data
+# Automobile Manufacturers, Models, And Specs
 A database which includes automobile manufacturers, models and engine options with specs.
 
-**If you need json format you need to download zip file. I compressed it to upload.**
-
-* 108 Brand
-* 6194 Model
-* 25400~ Model Option (Engine)
+* 119 Brand
+* 6681 Model
+* 28400~ Model Option (Engine)
 
 ## Specs
+
+### Brand Specs
+* Name
+* Logo
+
+### Model Specs
+* Brand
+* Name
+* Description
+* Press Release
+* Photos
+
+### Engine Specs
+* Name
 * Engine -> Cylinders
 * Engine -> Displacement
 * Engine -> Power
@@ -36,6 +48,6 @@ A database which includes automobile manufacturers, models and engine options wi
 * Weight -> Unladen
 * Weight -> Gross Weight Limit
 
-Data mined at **27/01/2020** from autoevolution.com
+Data scrapped from autoevolution.com at **08/12/2021**
 
-Sponsored by [6harf.com](https://6harf.com "web tasarım")
+Sponsored by [ilyasozkurt.com](https://ilyasozkurt.com "PHP Developer")
