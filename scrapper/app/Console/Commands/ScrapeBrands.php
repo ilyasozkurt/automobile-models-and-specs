@@ -51,16 +51,16 @@ class ScrapeBrands extends Command
         $pageContents = $http->body();
         $pageDom = str_get_html($pageContents);
 
-        $brandDoms = $pageDom->find('.carman');
+        $brandDOMs = $pageDom->find('.carman');
 
-        $progressbar = $this->output->createProgressBar(count($brandDoms));
+        $progressbar = $this->output->createProgressBar(count($brandDOMs));
         $progressbar->start();
 
-        foreach ($brandDoms as $brandDom) {
+        foreach ($brandDOMs as $brandDOM) {
 
-            $url = trim($brandDom->find('[itemprop="url"]')[0]->content ?? null);
-            $name = trim($brandDom->find('[itemprop="name"]')[0]->plaintext ?? null);
-            $logo = trim($brandDom->find('[itemprop="logo"]')[0]->src ?? null);
+            $url = trim($brandDOM->find('[itemprop="url"]')[0]->content ?? null);
+            $name = trim($brandDOM->find('[itemprop="name"]')[0]->plaintext ?? null);
+            $logo = trim($brandDOM->find('[itemprop="logo"]')[0]->src ?? null);
 
             Brand::updateOrCreate(
                 ['url_hash' => \hash('crc32', $url)],
@@ -76,7 +76,7 @@ class ScrapeBrands extends Command
 
         $progressbar->finish();
 
-        $this->output->info(count($brandDoms) .' brands inserted/updated on database.');
+        $this->output->info(count($brandDOMs) .' brands inserted/updated on database.');
 
         return Command::SUCCESS;
 
