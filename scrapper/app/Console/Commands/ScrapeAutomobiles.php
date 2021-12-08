@@ -8,8 +8,10 @@ error_reporting(E_ALL);
 use App\Models\Automobile;
 use App\Models\Brand;
 use App\Models\Engine;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
+use simple_html_dom;
 
 class ScrapeAutomobiles extends Command
 {
@@ -25,7 +27,7 @@ class ScrapeAutomobiles extends Command
      *
      * @var string
      */
-    protected $description = 'This function scrapes automobile models from autoevolution.com';
+    protected $description = 'This function scrapes automobile models from the autoevolution.com';
 
     /**
      * Create a new command instance.
@@ -40,175 +42,88 @@ class ScrapeAutomobiles extends Command
     /**
      * Execute the console command.
      *
+     * @throws Exception
      * @return int
      */
-    public function handle()
+    public function handle(): int
     {
+
+        //Ask for continue from that point process stopped.
+        $forceAll = $this->ask('Do you want to start over? (yes/no)', 'no');
 
         //Scrape brands from scratch.
         $this->call('scrape:brands');
 
+        //Print an info about process.
         $this->output->info('Looking for automobile models.');
 
-        //Make first request to get updated id list for brands
-        $http = Http::retry(5)->get('https://www.autoevolution.com/carfinder/');
+        //Get rows as array that keeps row DOMs.
+        $automobileRowsDOMs = $this->getAutomobileRowDOMs();
 
-        if ($http->failed()) {
-            $this->output->error('https://www.autoevolution.com/carfinder/ could not received');
-            return Command::FAILURE;
-        }
+        if ($automobileRowsDOMs) {
 
-        $pageContents = $http->body();
-        $pageDom = str_get_html($pageContents);
+            //Count automobile rows count.
+            $modelsCount = count($automobileRowsDOMs);
 
-        $brandIds = [];
-        $selectBoxItems = $pageDom->find('.cfrow', 1)->find('ul [data-opt]');
+            //Create a console progressbar.
+            $progressbar = $this
+                ->output
+                ->createProgressBar($modelsCount);
+            $progressbar->setFormat('very_verbose');
+            $progressbar->start();
 
-        foreach ($selectBoxItems as $boxItem) {
-            $brandIds[] = $boxItem->getAttribute('data-opt');
-        }
+            //Print an info about models count.
+            $this->output->info($modelsCount . ' models found.');
 
-        $brandIds = implode(',', $brandIds);
+            foreach ($automobileRowsDOMs as $automobileRowDOM) {
 
-        //Make another request to get all automobiles
-        $http = Http::asForm()->withHeaders([
-            'Content-Type' => 'application/x-www-form-urlencoded',
-        ])->post('https://www.autoevolution.com/carfinder/', [
-            'n[brand]' => $brandIds,
-            'n[submitted]' => 1
-        ]);
+                //Get automobile detail page url.
+                $detailURL = $automobileRowDOM->find('a', 0)->href ?? null;
 
-        if ($http->failed()) {
-            $this->output->error('https://www.autoevolution.com/carfinder/ could not received');
-            return Command::FAILURE;
-        }
+                //Check process continue option
+                if ($forceAll !== 'yes') {
 
-        $pageContents = $http->body();
-        $pageDom = str_get_html($pageContents);
-        $automobileDoms = $pageDom->find('h5');
+                    $automobile = Automobile::where('url_hash', hash('crc32', $detailURL))->first();
 
-        $enginesCount = 0;
-        $modelsCount = count($automobileDoms);
-
-        $this->output->info($modelsCount . ' models found.');
-
-        $progressbar = $this->output->createProgressBar($modelsCount);
-        $progressbar->setFormat('very_verbose');
-        $progressbar->start();
-
-        foreach ($automobileDoms as $automobileDom) {
-
-            $detailURL = $automobileDom->find('a', 0)->href ?? null;
-
-            //Make first request to get updated id list for brands
-            $http = Http::retry(5)->get($detailURL);
-
-            if ($http->failed()) {
-                $this->output->error($detailURL . ' could not received');
-            }
-
-            $pageContents = $http->body();
-            $pageDom = str_get_html($pageContents);
-
-            $name = $pageDom->find('.newstitle', 0)->plaintext ?? null;
-            $brandName = trim($pageDom->find('[itemprop="brand"]', 0)->plaintext ?? null);
-            $description = $this->dropHtmlAttributes($pageDom->find('.modelcontainer [itemprop="description"]', 0)->innertext ?? null);
-            $photosJSON = json_decode($pageDom->find('#schema-gallery-data', 0)->innertext ?? null);
-            $engineVariants = $pageDom->find('[data-engid]');
-
-            $brand = Brand::where('name', $brandName)->first();
-
-            $photos = [];
-            if (is_object($photosJSON)) {
-                foreach ($photosJSON->associatedMedia as $media) {
-                    $photos[] = $media->contentUrl;
-                }
-            } else {
-                $photos = [];
-            }
-
-            $pressRelease = null;
-
-            //Parse id to get press release
-            $iForPressRelease = $pageDom->find('[onclick^="aeshowpress("]', 0);
-
-            if ($iForPressRelease) {
-                $onClick = $iForPressRelease->getAttribute('onclick');
-                preg_match('/aeshowpress\(([0-9]*)\,/i', $onClick, $matches);
-                if (is_numeric($matches[1])) {
-                    $pressRelease = Http::get('https://www.autoevolution.com/rhh.php?k=pr_cars&i=' . $matches[1]);
-                    $pressRelease = $pressRelease->body();
-                    $pressRelease = str_get_html($pressRelease);
-                    $pressRelease = $this->dropHtmlAttributes($pressRelease->find('.content', 0)->innertext);
-                }
-            }
-
-            $automobile = Automobile::updateOrCreate([
-                'url_hash' => hash('crc32', $detailURL),
-            ], [
-                'url' => $detailURL,
-                'brand_id' => $brand->id,
-                'name' => $name,
-                'description' => $description,
-                'press_release' => $pressRelease,
-                'photos' => $photos,
-            ]);
-
-
-            foreach ($engineVariants as $engineVariant) {
-
-                $otherId = $engineVariant->getAttribute('data-engid');
-                $name = $engineVariant->find('.enginedata .title .col-green2', 0)->plaintext ?? null;
-
-                if (!$name) {
-                    continue;
-                }
-
-                $specs = [];
-
-                foreach ($engineVariant->find('.techdata') as $index => $techData) {
-
-                    $sectionName = $techData->find('.title', 0)->plaintext ?? null;
-
-                    if (str_contains($sectionName, 'ENGINE SPECS')) {
-                        $sectionName = 'ENGINE SPECS';
+                    //If automobile exists in database, do not process it.
+                    if ($automobile) {
+                        $progressbar->advance();
+                        continue;
                     }
 
-                    $sectionName = $this->toTitleCase($sectionName);
-                    $sectionItems = $techData->find('dl dt');
-
-                    foreach ($sectionItems as $dt) {
-                        $specName = $this->toTitleCase($dt->plaintext ?? null);
-                        $specValue = $this->toTitleCase($dt->next_sibling()->plaintext ?? null);
-                        $specs[$sectionName][$specName] = $specValue;
-                    }
                 }
 
-                Engine::updateOrCreate([
-                    'other_id' => $otherId,
-                ], [
-                    'automobile_id' => $automobile->id,
-                    'name' => $name,
-                    'specs' => $specs,
-                ]);
+                //Process automobile detail page.
+                $this->processAutomobileDetailPage($detailURL);
 
-                $enginesCount++;
+                //Increase progressbar.
+                $progressbar->advance();
 
             }
 
-            $progressbar->advance();
+            //Finish progressbar.
+            $progressbar->finish();
+
+        } else {
+
+            $this
+                ->output
+                ->error('There is no automobile row found in search page.');
 
         }
 
-        $progressbar->finish();
+        //Print an information that process finished.
+        $this
+            ->output
+            ->info(count($automobileRowsDOMs) . ' models inserted/updated on database.');
 
-        $this->output->info(count($automobileDoms) . ' models and ' . $enginesCount . ' engines inserted/updated on database.');
-
-        return Command::SUCCESS;
+        return self::SUCCESS;
 
     }
 
     /**
+     * Convert the case of the string to the title case.
+     *
      * @param string $text
      * @return string
      */
@@ -218,12 +133,283 @@ class ScrapeAutomobiles extends Command
     }
 
     /**
+     * Drops HTML elements' attributes to make them more clear.
+     *
      * @param string $text
      * @return string
      */
     private function dropHtmlAttributes(string $text): string
     {
         return preg_replace("/<([a-z][a-z0-9]*)[^>]*?(\/?)>/si", '<$1$2>', $text);
+    }
+
+    /**
+     * Loads a URL source as html DOM.
+     *
+     * @param string $url
+     * @return simple_html_dom|bool
+     */
+    private function loadURLAsDom(string $url): simple_html_dom|bool
+    {
+
+        $http = Http::retry(5)
+            ->get($url);
+
+        return str_get_html($http->body());
+
+    }
+
+    /**
+     * Gets a press release if it exists for the automobile.
+     *
+     * @param simple_html_dom $pageDom
+     * @return string|null
+     */
+    private function getPressRelease(simple_html_dom $pageDom): string|null
+    {
+
+        $pressRelease = null;
+
+        //Parse id to get press release
+        $iForPressRelease = $pageDom->find('[onclick^="aeshowpress("]', 0);
+
+        if ($iForPressRelease) {
+
+            $onClick = $iForPressRelease->getAttribute('onclick');
+            preg_match('/aeshowpress\(([0-9]*)\,/i', $onClick, $matches);
+
+            if (is_numeric($matches[1])) {
+
+                $pressRelease = Http::get('https://www.autoevolution.com/rhh.php?k=pr_cars&i=' . $matches[1]);
+                $pressRelease = $pressRelease->body();
+                $pressRelease = str_get_html($pressRelease);
+                $pressRelease = $this->dropHtmlAttributes(
+                    $pressRelease
+                        ->find('.content', 0)
+                        ->innertext
+                );
+
+            }
+
+        }
+
+        return $pressRelease;
+
+    }
+
+    /**
+     * Loads search page and get brand ids as a comma-separated string.
+     *
+     * @return string|null
+     */
+    private function getBrandIds(): string|null
+    {
+
+        $http = Http::retry(5)
+            ->get('https://www.autoevolution.com/carfinder/');
+
+        if ($http->failed()) {
+            $this
+                ->output
+                ->error('https://www.autoevolution.com/carfinder/ could not received');
+        }
+
+        $pageContents = $http->body();
+        $pageDom = str_get_html($pageContents);
+
+        $brandIds = null;
+
+        $selectBoxItemDOMs = $pageDom
+            ->find('.cfrow', 1)
+            ->find('ul [data-opt]');
+
+        foreach ($selectBoxItemDOMs as $boxItemDom) {
+            $brandIds[] = $boxItemDom->getAttribute('data-opt');
+        }
+
+        return $brandIds ? implode(',', $brandIds) : null;
+
+    }
+
+    /**
+     * Gets automobile rows from the search page.
+     *
+     * @return array|null
+     */
+    private function getAutomobileRowDOMs(): array|null
+    {
+        $brandIds = $this->getBrandIds();
+
+        if (!$brandIds) {
+            $this
+                ->output
+                ->error('Brand ids for searching models is could not received.');
+            die();
+        }
+
+        //Make another request to get all automobiles
+        $http = Http::asForm()->withHeaders([
+            'Content-Type' => 'application/x-www-form-urlencoded',
+        ])->post('https://www.autoevolution.com/carfinder/', [
+            'n[brand]' => $this->getBrandIds(),
+            'n[submitted]' => 1
+        ]);
+
+        if ($http->failed()) {
+            $this
+                ->output
+                ->error('https://www.autoevolution.com/carfinder/ could not received');
+        }
+
+        $pageContents = $http->body();
+        $pageDom = str_get_html($pageContents);
+
+        return $pageDom->find('h5');
+
+    }
+
+    /**
+     * Get's automobile description from HTML source.
+     *
+     * @param simple_html_dom $pageDom
+     * @return string|null
+     */
+    private function getContent(simple_html_dom $pageDom): string|null
+    {
+
+        $description = null;
+        $descriptionDom = $pageDom
+            ->find('.modelcontainer [itemprop="description"]', 0);
+
+        if ($descriptionDom) {
+            $description = $this->dropHtmlAttributes(
+                $descriptionDom->innertext
+            );
+        }
+
+        return $description;
+
+    }
+
+    /**
+     * Gets automobile photos from HTML resource.
+     *
+     * @param simple_html_dom $pageDom
+     * @return array|null
+     */
+    private function getPhotos(simple_html_dom $pageDom): array|null
+    {
+
+        $photos = null;
+
+        $photosJSON = json_decode(
+            $pageDom
+                ->find('#schema-gallery-data', 0)
+                ->innertext ?? null
+        );
+
+        if (is_object($photosJSON)) {
+            foreach ($photosJSON->associatedMedia as $media) {
+                $photos[] = $media->contentUrl;
+            }
+        }
+
+        return $photos;
+
+    }
+
+    /**
+     * Processes automobile detail page.
+     *
+     * @param string $detailURL
+     * @return void
+     * @throws Exception
+     */
+    private function processAutomobileDetailPage(string $detailURL): void
+    {
+
+        $pageDom = $this->loadURLAsDom($detailURL);
+
+        if ($pageDom) {
+
+            $name = $pageDom->find('.newstitle', 0)->plaintext ?? null;
+            $brandName = trim($pageDom->find('[itemprop="brand"]', 0)->plaintext ?? null);
+            $brand = Brand::where('name', $brandName)->first();
+
+            $automobile = Automobile::updateOrCreate([
+                'url_hash' => hash('crc32', $detailURL),
+            ], [
+                'url' => $detailURL,
+                'brand_id' => $brand->id,
+                'name' => $name,
+                'description' => $this->getContent($pageDom),
+                'press_release' => $this->getPressRelease($pageDom),
+                'photos' => $this->getPhotos($pageDom),
+            ]);
+
+            $this->processEngineDOMs($automobile->id, $pageDom);
+
+        } else {
+
+            throw new Exception($detailURL . ' could not load as dom.');
+
+        }
+
+    }
+
+    /**
+     * Processes automobile's engine variants.
+     *
+     * @param int $automobileId
+     * @param simple_html_dom $pageDom
+     * @return void
+     */
+    private function processEngineDOMs(int $automobileId, simple_html_dom $pageDom): void
+    {
+
+        $engineVariants = $pageDom->find('[data-engid]');
+
+        foreach ($engineVariants as $engineVariant) {
+
+            $otherId = $engineVariant->getAttribute('data-engid');
+            $name = $engineVariant->find('.enginedata .title .col-green2', 0)->plaintext ?? null;
+
+            if (!$name) {
+                continue;
+            }
+
+            $specs = [];
+
+            foreach ($engineVariant->find('.techdata') as $techData) {
+
+                $sectionName = $techData->find('.title', 0)->plaintext ?? null;
+
+                if (str_contains($sectionName, 'ENGINE SPECS')) {
+                    $sectionName = 'ENGINE SPECS';
+                }
+
+                $sectionName = $this->toTitleCase($sectionName);
+                $sectionItems = $techData->find('dl dt');
+
+                foreach ($sectionItems as $dt) {
+                    $specName = $this->toTitleCase($dt->plaintext ?? null);
+                    $specValue = $this->toTitleCase($dt->next_sibling()->plaintext ?? null);
+                    $specs[$sectionName][$specName] = $specValue;
+                }
+
+            }
+
+            Engine::updateOrCreate([
+                'other_id' => $otherId,
+            ], [
+                'automobile_id' => $automobileId,
+                'name' => $name,
+                'specs' => $specs,
+            ]);
+
+        }
+
+
     }
 
 }
