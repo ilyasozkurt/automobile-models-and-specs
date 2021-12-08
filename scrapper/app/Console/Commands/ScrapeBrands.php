@@ -40,6 +40,8 @@ class ScrapeBrands extends Command
     public function handle()
     {
 
+        $this->output->info('Looking for brands.');
+
         $http = Http::get('https://www.autoevolution.com/cars/');
 
         if ($http->failed()) {
@@ -51,13 +53,16 @@ class ScrapeBrands extends Command
 
         $brandDoms = $pageDom->find('.carman');
 
+        $progressbar = $this->output->createProgressBar(count($brandDoms));
+        $progressbar->start();
+
         foreach ($brandDoms as $brandDom) {
 
             $url = trim($brandDom->find('[itemprop="url"]')[0]->content ?? null);
             $name = trim($brandDom->find('[itemprop="name"]')[0]->plaintext ?? null);
             $logo = trim($brandDom->find('[itemprop="logo"]')[0]->src ?? null);
 
-            $brand = Brand::updateOrCreate(
+            Brand::updateOrCreate(
                 ['url_hash' => \hash('crc32', $url)],
                 [
                     'url' => $url,
@@ -65,10 +70,13 @@ class ScrapeBrands extends Command
                     'logo' => $logo,
                 ]);
 
-            print $url . PHP_EOL;
-
+            $progressbar->advance();
 
         }
+
+        $progressbar->finish();
+
+        $this->output->info(count($brandDoms) .' brands inserted/updated on database.');
 
         return Command::SUCCESS;
 
