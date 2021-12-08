@@ -1,11 +1,18 @@
 # Automobile Manufacturers, Models, And Specs
 A database which includes automobile manufacturers, models and engine options with specs.
 
+## How to install and use Scrapper?
+
+1. `git clone https://github.com/ilyasozkurt/automobile-models-and-specs`
+2. `composer install`
+3. Get a copy of `.env.example` and save it as `.env` after configuring database variables.
+4. `php artisan migrate`
+5. `php artisan scrape:automobiles`
+
+## Data Information
 * 119 Brand
 * 6681 Model
 * 28400~ Model Option (Engine)
-
-## Specs
 
 ### Brand Specs
 * Name
