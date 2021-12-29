@@ -3,7 +3,7 @@ A database which includes automobile manufacturers, models and engine options wi
 
 ## How to install and use Scrapper?
 
-1. `git clone https://github.com/ilyasozkurt/automobile-models-and-specs && cd automobile-models-and-specs`
+1. `git clone https://github.com/ilyasozkurt/automobile-models-and-specs && cd automobile-models-and-specs/scrapper`
 1. `composer install`
 3. Get a copy of `.env.example` and save it as `.env` after configuring database variables.
 4. `php artisan migrate`
