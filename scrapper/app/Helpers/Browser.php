@@ -50,7 +50,7 @@ if (!function_exists('browseUrl')) {
      * @throws Exception
      * @throws Throwable
      */
-    function browseUrl(string $url): string
+    function browseUrl(string $url, int $retryCount = 3): string
     {
 
         try {
@@ -64,6 +64,10 @@ if (!function_exists('browseUrl')) {
                 ->getReturnValue();
 
         } catch (Throwable $th) {
+
+            if ($retryCount > 0) {
+                return browseUrl($url, $retryCount - 1);
+            }
 
             Log::error('browseUrl: ' . $url, [
                 'message' => $th->getMessage(),
@@ -96,7 +100,7 @@ if (!function_exists('browseUrlPost')) {
      * @throws NoResponseAvailable
      * @throws OperationTimedOut
      */
-    function browseUrlPost(string $url, array $postData = [], string $waitUntilContainsSelector = ''): string
+    function browseUrlPost(string $url, array $postData = [], int $retryCount = 3): string
     {
 
         try {
@@ -142,6 +146,10 @@ if (!function_exists('browseUrlPost')) {
                 ->getReturnValue();
 
         } catch (Throwable $th) {
+
+            if ($retryCount > 0) {
+                return browseUrlPost($url, $postData, $retryCount - 1);
+            }
 
             Log::error('browseUrlPost: ' . $url, [
                 'message' => $th->getMessage(),
