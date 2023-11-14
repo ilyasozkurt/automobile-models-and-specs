@@ -50,6 +50,13 @@ class ScrapeAutomobiles extends Command
         //Ask for continue from that point process stopped.
         $forceAll = $this->ask('Do you want to start over? (yes/no)', 'no');
 
+        //Truncate models
+        if ($forceAll === 'yes') {
+            Automobile::truncate();
+            Engine::truncate();
+            Brand::truncate();
+        }
+
         //Scrape brands from scratch.
         $this->call('scrape:brands');
 
@@ -80,16 +87,12 @@ class ScrapeAutomobiles extends Command
                 $detailURL = $automobileRowDOM->find('a', 0)->href ?? null;
 
                 //Check process continue option
-                if ($forceAll !== 'yes') {
+                $automobile = Automobile::where('url_hash', hash('crc32', $detailURL))->first();
 
-                    $automobile = Automobile::where('url_hash', hash('crc32', $detailURL))->first();
-
-                    //If automobile exists in database, do not process it.
-                    if ($automobile) {
-                        $progressbar->advance();
-                        continue;
-                    }
-
+                //If automobile exists in database, do not process it.
+                if ($automobile) {
+                    $progressbar->advance();
+                    continue;
                 }
 
                 //Process automobile detail page.
