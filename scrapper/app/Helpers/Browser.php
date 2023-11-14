@@ -140,7 +140,6 @@ if (!function_exists('browseUrlPost')) {
             $browserTab->evaluate("createAndSubmitForm('$url', " . json_encode($postData) . ")");
 
             $browserTab->waitForReload($browserTab::DOM_CONTENT_LOADED);
-            //$browserTab->waitUntilContainsElement('#carfform');
 
             return $browserTab->evaluate('document.documentElement.outerHTML')
                 ->getReturnValue();
