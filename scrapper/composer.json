@@ -6,6 +6,7 @@
     "license": "MIT",
     "require": {
         "php": "^7.3|^8.0",
+        "chrome-php/chrome": "^1.9",
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
         "laravel/framework": "^8.65",
@@ -27,7 +28,8 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/Helpers/simple_html_dom.php"
+            "app/Helpers/simple_html_dom.php",
+            "app/Helpers/Browser.php"
         ]
     },
     "autoload-dev": {

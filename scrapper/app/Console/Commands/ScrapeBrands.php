@@ -42,14 +42,9 @@ class ScrapeBrands extends Command
 
         $this->output->info('Looking for brands.');
 
-        $http = Http::get('https://www.autoevolution.com/cars/');
+        $htmlSource = browseUrl('https://www.autoevolution.com/cars/');
 
-        if ($http->failed()) {
-            return Command::FAILURE;
-        }
-
-        $pageContents = $http->body();
-        $pageDom = str_get_html($pageContents);
+        $pageDom = str_get_html($htmlSource);
 
         $brandDOMs = $pageDom->find('.carman');
 

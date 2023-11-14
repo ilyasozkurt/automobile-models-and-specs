@@ -10,7 +10,6 @@ use App\Models\Brand;
 use App\Models\Engine;
 use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 use simple_html_dom;
 
 class ScrapeAutomobiles extends Command
@@ -152,10 +151,7 @@ class ScrapeAutomobiles extends Command
     private function loadURLAsDom(string $url): simple_html_dom|bool
     {
 
-        $http = Http::retry(5)
-            ->get($url);
-
-        return str_get_html($http->body());
+        return str_get_html(browseUrl($url));
 
     }
 
@@ -180,8 +176,7 @@ class ScrapeAutomobiles extends Command
 
             if (is_numeric($matches[1])) {
 
-                $pressRelease = Http::get('https://www.autoevolution.com/rhh.php?k=pr_cars&i=' . $matches[1]);
-                $pressRelease = $pressRelease->body();
+                $pressRelease = browseUrl('https://www.autoevolution.com/rhh.php?k=pr_cars&i=' . $matches[1]);
                 $pressRelease = str_get_html($pressRelease);
                 $pressRelease = $this->dropHtmlAttributes(
                     $pressRelease
@@ -205,16 +200,8 @@ class ScrapeAutomobiles extends Command
     private function getBrandIds(): string|null
     {
 
-        $http = Http::retry(5)
-            ->get('https://www.autoevolution.com/carfinder/');
+        $pageContents = browseUrl('https://www.autoevolution.com/carfinder/');
 
-        if ($http->failed()) {
-            $this
-                ->output
-                ->error('https://www.autoevolution.com/carfinder/ could not received');
-        }
-
-        $pageContents = $http->body();
         $pageDom = str_get_html($pageContents);
 
         $brandIds = null;
@@ -238,6 +225,7 @@ class ScrapeAutomobiles extends Command
      */
     private function getAutomobileRowDOMs(): array|null
     {
+
         $brandIds = $this->getBrandIds();
 
         if (!$brandIds) {
@@ -248,20 +236,11 @@ class ScrapeAutomobiles extends Command
         }
 
         //Make another request to get all automobiles
-        $http = Http::asForm()->withHeaders([
-            'Content-Type' => 'application/x-www-form-urlencoded',
-        ])->post('https://www.autoevolution.com/carfinder/', [
+        $pageContents = browseUrlPost('https://www.autoevolution.com/carfinder/', [
             'n[brand]' => $this->getBrandIds(),
             'n[submitted]' => 1
         ]);
 
-        if ($http->failed()) {
-            $this
-                ->output
-                ->error('https://www.autoevolution.com/carfinder/ could not received');
-        }
-
-        $pageContents = $http->body();
         $pageDom = str_get_html($pageContents);
 
         return $pageDom->find('h5');
@@ -333,8 +312,12 @@ class ScrapeAutomobiles extends Command
         if ($pageDom) {
 
             $name = $pageDom->find('.newstitle', 0)->plaintext ?? null;
-            $brandName = trim($pageDom->find('[itemprop="brand"]', 0)->plaintext ?? null);
+            $brandName = trim($pageDom->find('[itemprop="itemListElement"]', 2)->plaintext ?? null);
             $brand = Brand::where('name', $brandName)->first();
+
+            if (!$brand) {
+                throw new Exception($brandName . ' could not found in database.');
+            }
 
             $automobile = Automobile::updateOrCreate([
                 'url_hash' => hash('crc32', $detailURL),
@@ -372,7 +355,7 @@ class ScrapeAutomobiles extends Command
         foreach ($engineVariants as $engineVariant) {
 
             $otherId = $engineVariant->getAttribute('data-engid');
-            $name = $engineVariant->find('.enginedata .title .col-green2', 0)->plaintext ?? null;
+            $name = $engineVariant->find('.enginedata .title .col-green', 0)->plaintext ?? null;
 
             if (!$name) {
                 continue;
@@ -389,12 +372,23 @@ class ScrapeAutomobiles extends Command
                 }
 
                 $sectionName = $this->toTitleCase($sectionName);
-                $sectionItems = $techData->find('dl dt');
+                $sectionRows = $techData->find('tr');
 
-                foreach ($sectionItems as $dt) {
-                    $specName = $this->toTitleCase($dt->plaintext ?? null);
-                    $specValue = $this->toTitleCase($dt->next_sibling()->plaintext ?? null);
+                foreach ($sectionRows as $row) {
+
+                    $rowColumns = $row->find('td');
+
+                    if (count($rowColumns) !== 2) {
+                        continue;
+                    }
+
+                    $specColumn = $rowColumns[0];
+                    $valueColumn = $rowColumns[1];
+
+                    $specName = $this->toTitleCase($specColumn->plaintext ?? null);
+                    $specValue = $this->toTitleCase($valueColumn->plaintext ?? null);
                     $specs[$sectionName][$specName] = $specValue;
+
                 }
 
             }
