@@ -35,6 +35,7 @@ if (!function_exists('createBrowser')) {
                 '--disable-blink-features=AutomationControlled',
                 '--incognito',
                 '--enable-automation=false',
+                '--no-sandbox',
             ],
         ]);
 
@@ -103,7 +104,7 @@ if (!function_exists('browseUrl')) {
      * @throws ResponseHasError
      * @throws Throwable
      */
-    function browseUrl(string $url, int $retryCount = 10): string
+    function browseUrl(string $url, int $retryCount = 3): string
     {
 
         try {
@@ -160,7 +161,7 @@ if (!function_exists('browseUrlPost')) {
      * @throws ResponseHasError
      * @throws Throwable
      */
-    function browseUrlPost(string $url, array $postData = [], int $retryCount = 10): string
+    function browseUrlPost(string $url, array $postData = [], int $retryCount = 3): string
     {
 
         try {

@@ -117,8 +117,6 @@ class ScrapeAutomobiles extends Command
 
                 }
 
-                usleep(100000); // 100ms,
-
             }
 
             //Finish progressbar.
