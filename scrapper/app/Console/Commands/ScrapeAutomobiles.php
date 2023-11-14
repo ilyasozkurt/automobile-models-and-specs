@@ -21,7 +21,7 @@ class ScrapeAutomobiles extends Command
      *
      * @var string
      */
-    protected $signature = 'scrape:automobiles';
+    protected $signature = 'scrape:automobiles {--start-over}';
 
     /**
      * The console command description.
@@ -50,7 +50,7 @@ class ScrapeAutomobiles extends Command
     {
 
         //Ask for continue from that point process stopped.
-        $forceAll = $this->ask('Do you want to start over? (yes/no)', 'no');
+        $forceAll = $this->option('start-over') ?? $this->ask('Do you want to start over? (yes/no)');
 
         //Truncate models
         if ($forceAll === 'yes') {
