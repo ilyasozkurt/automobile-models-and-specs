@@ -10,7 +10,9 @@ use App\Models\Brand;
 use App\Models\Engine;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use simple_html_dom;
+use Throwable;
 
 class ScrapeAutomobiles extends Command
 {
@@ -86,22 +88,36 @@ class ScrapeAutomobiles extends Command
                 //Get automobile detail page url.
                 $detailURL = $automobileRowDOM->find('a', 0)->href ?? null;
 
-                //Check process continue option
-                $automobile = Automobile::where('url_hash', hash('crc32', $detailURL))->first();
+                DB::beginTransaction();
 
-                //If automobile exists in database, do not process it.
-                if ($automobile) {
+                try{
+
+                    //Check process continue option
+                    $automobile = Automobile::where('url_hash', hash('crc32', $detailURL))->first();
+
+                    //If automobile exists in database, do not process it.
+                    if ($automobile) {
+                        $progressbar->advance();
+                        continue;
+                    }
+
+                    //Process automobile detail page.
+                    $this->processAutomobileDetailPage($detailURL);
+
+                    DB::commit();
+
+                    //Increase progressbar.
                     $progressbar->advance();
-                    continue;
+
+                }catch (Throwable $exception){
+
+                    DB::rollback();
+
+                    throw $exception;
+
                 }
 
-                //Process automobile detail page.
-                $this->processAutomobileDetailPage($detailURL);
-
-                //Increase progressbar.
-                $progressbar->advance();
-
-                usleep(100000); // 100ms
+                usleep(100000); // 100ms,
 
             }
 

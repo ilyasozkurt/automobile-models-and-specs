@@ -1,6 +1,7 @@
 <?php
 
 use HeadlessChromium\Browser;
+use HeadlessChromium\BrowserFactory;
 use HeadlessChromium\Exception\CommunicationException;
 use HeadlessChromium\Exception\CommunicationException\CannotReadResponse;
 use HeadlessChromium\Exception\CommunicationException\InvalidResponse;
@@ -12,6 +13,50 @@ use HeadlessChromium\Exception\NoResponseAvailable;
 use HeadlessChromium\Exception\OperationTimedOut;
 use HeadlessChromium\Page;
 use Illuminate\Support\Facades\Log;
+
+if (!function_exists('createBrowser')) {
+    function createBrowser(): Browser
+    {
+
+        $browserFactory = new BrowserFactory();
+
+        $browser = $browserFactory->createBrowser([
+            'headless' => true,
+            'sandbox' => false,
+            'userAgent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36',
+            'windowSize' => [1440, 900],
+            'keepAlive' => true,
+            'imagesEnabled' => true,
+            'ignoreCertificateErrors' => true,
+            'userDataDir' => storage_path('browser'),
+            'userCrashDumpsDir' => storage_path('browser/crash-dumps'),
+            'customFlags' => [
+                '--disable-blink-features',
+                '--disable-blink-features=AutomationControlled',
+                '--incognito',
+                '--enable-automation=false',
+            ],
+        ]);
+
+        $browser->createPage();
+
+        app()->instance(Browser::class, $browser);
+
+        return app(Browser::class);
+
+    }
+}
+
+if (!function_exists('destroyBrowser')) {
+    /**
+     * @return void
+     * @throws Exception
+     */
+    function destroyBrowser(): void
+    {
+        getBrowser()->close();
+    }
+}
 
 if (!function_exists('getBrowser')) {
     function getBrowser(): Browser
@@ -26,31 +71,39 @@ if (!function_exists('getBrowserTab')) {
      */
     function getBrowserTab(): Page
     {
-        return getBrowser()->getPages()[0];
+        return getBrowser()->getPages()[0] ?? getBrowser()->createPage();
     }
 }
 
-if (!function_exists('destroyBrowser')) {
+if (!function_exists('renewBrowser')) {
     /**
      * @return void
      * @throws Exception
      */
-    function destroyBrowser(): void
+    function renewBrowser(): void
     {
-        Log::info('The browser instance is going to be destroyed.');
-        getBrowser()->close();
-        Log::info('The browser instance is destroyed.');
+        destroyBrowser();
+        createBrowser();
     }
 }
 
 if (!function_exists('browseUrl')) {
     /**
      * @param string $url
+     * @param int $retryCount
      * @return string
-     * @throws Exception
+     * @throws CannotReadResponse
+     * @throws CommunicationException
+     * @throws EvaluationFailed
+     * @throws InvalidResponse
+     * @throws JavascriptException
+     * @throws NavigationExpired
+     * @throws NoResponseAvailable
+     * @throws OperationTimedOut
+     * @throws ResponseHasError
      * @throws Throwable
      */
-    function browseUrl(string $url, int $retryCount = 3): string
+    function browseUrl(string $url, int $retryCount = 10): string
     {
 
         try {
@@ -62,6 +115,12 @@ if (!function_exists('browseUrl')) {
 
             return $browserTab->evaluate('document.documentElement.outerHTML')
                 ->getReturnValue();
+
+        } catch (OperationTimedOut $exception) {
+
+            renewBrowser();
+
+            return browseUrl($url, $retryCount - 1);
 
         } catch (Throwable $th) {
 
@@ -88,19 +147,20 @@ if (!function_exists('browseUrlPost')) {
     /**
      * @param string $url
      * @param array $postData
+     * @param int $retryCount
      * @return string
-     * @throws Throwable
-     * @throws CommunicationException
      * @throws CannotReadResponse
-     * @throws InvalidResponse
-     * @throws ResponseHasError
+     * @throws CommunicationException
      * @throws EvaluationFailed
+     * @throws InvalidResponse
      * @throws JavascriptException
      * @throws NavigationExpired
      * @throws NoResponseAvailable
      * @throws OperationTimedOut
+     * @throws ResponseHasError
+     * @throws Throwable
      */
-    function browseUrlPost(string $url, array $postData = [], int $retryCount = 3): string
+    function browseUrlPost(string $url, array $postData = [], int $retryCount = 10): string
     {
 
         try {
@@ -111,29 +171,29 @@ if (!function_exists('browseUrlPost')) {
                 ->waitForNavigation();
 
             $jsFunction = "function createAndSubmitForm(actionUrl, formData) {
-  // Create a form element
-  const form = document.createElement('form');
-  form.setAttribute('method', 'post');
-  form.setAttribute('action', actionUrl);
+                              // Create a form element
+                              const form = document.createElement('form');
+                              form.setAttribute('method', 'post');
+                              form.setAttribute('action', actionUrl);
 
-  // Iterate through the form data and create input elements
-  for (const key in formData) {
-    if (formData.hasOwnProperty(key)) {
-      const input = document.createElement('input');
-      input.setAttribute('type', 'hidden');
-      input.setAttribute('name', key);
-      input.setAttribute('value', formData[key]);
-      form.appendChild(input);
-    }
-  }
+                              // Iterate through the form data and create input elements
+                              for (const key in formData) {
+                                if (formData.hasOwnProperty(key)) {
+                                  const input = document.createElement('input');
+                                  input.setAttribute('type', 'hidden');
+                                  input.setAttribute('name', key);
+                                  input.setAttribute('value', formData[key]);
+                                  form.appendChild(input);
+                                }
+                              }
 
-  // Append the form to the document body
-  document.body.appendChild(form);
+                              // Append the form to the document body
+                              document.body.appendChild(form);
 
-  // Submit the form
-  form.submit();
+                              // Submit the form
+                              form.submit();
 
-}";
+                            }";
 
             $browserTab->evaluate($jsFunction);
 
@@ -143,6 +203,12 @@ if (!function_exists('browseUrlPost')) {
 
             return $browserTab->evaluate('document.documentElement.outerHTML')
                 ->getReturnValue();
+
+        } catch (OperationTimedOut $exception) {
+
+            renewBrowser();
+
+            return browseUrl($url, $retryCount - 1);
 
         } catch (Throwable $th) {
 
