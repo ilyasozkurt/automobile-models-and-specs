@@ -101,6 +101,8 @@ class ScrapeAutomobiles extends Command
                 //Increase progressbar.
                 $progressbar->advance();
 
+                usleep(100000); // 100ms
+
             }
 
             //Finish progressbar.
@@ -142,7 +144,8 @@ class ScrapeAutomobiles extends Command
      */
     private function dropHtmlAttributes(string $text): string
     {
-        return preg_replace("/<([a-z][a-z0-9]*)[^>]*?(\/?)>/si", '<$1$2>', $text);
+        $clean= preg_replace("/<([a-z][a-z0-9]*)[^>]*?(\/?)>/si", '<$1$2>', $text);
+        return trim($clean);
     }
 
     /**
@@ -260,8 +263,10 @@ class ScrapeAutomobiles extends Command
     {
 
         $description = null;
-        $descriptionDom = $pageDom
-            ->find('.modelcontainer [itemprop="description"]', 0);
+        $descriptionDoms = $pageDom
+            ->find('.fl.newstext .mgbot_20');
+        //get last description dom
+        $descriptionDom = end($descriptionDoms);
 
         if ($descriptionDom) {
             $description = $this->dropHtmlAttributes(
