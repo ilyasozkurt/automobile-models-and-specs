@@ -21,7 +21,7 @@ class ScrapeAutomobiles extends Command
      *
      * @var string
      */
-    protected $signature = 'scrape:automobiles {--start-over}';
+    protected $signature = 'scrape:automobiles {--start-over=}';
 
     /**
      * The console command description.

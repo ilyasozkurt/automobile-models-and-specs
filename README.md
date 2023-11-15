@@ -10,9 +10,9 @@ A database which includes automobile manufacturers, models and engine options wi
 5. `php artisan scrape:automobiles`
 
 ## Data Information
-* 119 Brand
-* 6681 Model
-* 28400~ Model Option (Engine)
+* 124 Brand
+* 7059 Model
+* 29777~ Model Option (Engine)
 
 ### Brand Specs
 * Name
@@ -55,6 +55,6 @@ A database which includes automobile manufacturers, models and engine options wi
 * Weight -> Unladen
 * Weight -> Gross Weight Limit
 
-Data scrapped from autoevolution.com at **08/12/2021**
+Data scrapped from autoevolution.com at **15/11/2023**
 
-Sponsored by [hometrust.app](https://hometrust.app "Property Reviews Platform")
+Sponsored by [trustlocale.com](https://hometrust.app "Property Reviews Platform")
