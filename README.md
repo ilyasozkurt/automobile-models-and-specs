@@ -11,8 +11,8 @@ A database which includes automobile manufacturers, models and engine options wi
 
 ## Data Information
 * 124 Brand
-* 7059 Model
-* 29777~ Model Option (Engine)
+* 7207 Model
+* 30066~ Model Option (Engine)
 
 ### Brand Specs
 * Name
@@ -55,6 +55,6 @@ A database which includes automobile manufacturers, models and engine options wi
 * Weight -> Unladen
 * Weight -> Gross Weight Limit
 
-Data scrapped from autoevolution.com at **15/11/2023**
+Data scrapped from autoevolution.com at **23/10/2024**
 
 Sponsored by [trustlocale.com](https://trustlocale.com "Property Reviews Platform")
