@@ -43,8 +43,8 @@ class ScrapeAutomobiles extends Command
     /**
      * Execute the console command.
      *
-     * @throws Exception
      * @return int
+     * @throws Throwable
      */
     public function handle(): int
     {
