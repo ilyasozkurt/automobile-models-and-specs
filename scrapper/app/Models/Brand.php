@@ -33,4 +33,18 @@ class Brand extends Model
     {
         return $this->hasMany('App\Models\Automobile');
     }
+
+    /**
+     * @return array
+     */
+    public function toCsv(): array
+    {
+        return [
+            'id' => $this->id,
+            'url_hash' => $this->url_hash,
+            'url' => $this->url,
+            'name' => $this->name,
+            'logo' => $this->logo,
+        ];
+    }
 }

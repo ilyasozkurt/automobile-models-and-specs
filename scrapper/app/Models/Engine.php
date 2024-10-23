@@ -37,4 +37,18 @@ class Engine extends Model
         return $this->belongsTo('App\Models\Automobile');
     }
 
+    /**
+     * @return array
+     */
+    public function toCsv(): array
+    {
+        return [
+            'id' => $this->id,
+            'other_id' => $this->other_id,
+            'automobile_id' => $this->automobile_id,
+            'name' => $this->name,
+            'specs' => json_encode($this->specs),
+        ];
+    }
+
 }

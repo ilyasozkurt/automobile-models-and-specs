@@ -42,4 +42,22 @@ class Automobile extends Model
     {
         return $this->hasMany('App\Models\Engine');
     }
+
+    /**
+     * @return array
+     */
+    public function toCsv(): array
+    {
+        return [
+            'id' => $this->id,
+            'url_hash' => $this->url_hash,
+            'url' => $this->url,
+            'brand_id' => $this->brand_id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'press_release' => $this->press_release,
+            'photos' => json_encode($this->photos),
+        ];
+    }
+
 }
