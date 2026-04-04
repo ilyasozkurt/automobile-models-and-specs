@@ -57,4 +57,5 @@ A database which includes automobile manufacturers, models and engine options wi
 
 Data scrapped from autoevolution.com at **23/10/2024**
 
-Sponsored by [offday.app](https://trustlocale.com "Discover the best days off to maximize your holiday!")
+Sponsored by [offday.app](https://offday.app "Discover the best days off to maximize your holiday!")
+Sponsored by [uptimetick.com](https://uptimetick.com "Your alternate uptime monitor")
